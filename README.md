@@ -1,3 +1,3 @@
 # KELAS KECERDASAN BUATAN 3B - SEMESTER 6
 
-## Selamat datang di kelas Kecerdasan Buatan 3B! Di sini, kita akan menjelajahi dunia kecerdasan buatan dan belajar tentang berbagai konsep dan teknik yang digunakan dalam pengembangan sistem cerdas. Bersiaplah untuk memperluas pengetahuan dan keterampilan Anda dalam bidang yang menarik ini. Mari kita mulai perjalanan kita menuju pemahaman yang lebih dalam tentang kecerdasan buatan!
+Selamat datang di kelas Kecerdasan Buatan 3B! Di sini, kita akan menjelajahi dunia kecerdasan buatan dan belajar tentang berbagai konsep dan teknik yang digunakan dalam pengembangan sistem cerdas. Bersiaplah untuk memperluas pengetahuan dan keterampilan Anda dalam bidang yang menarik ini. Mari kita mulai perjalanan kita menuju pemahaman yang lebih dalam tentang kecerdasan buatan!
