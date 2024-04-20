@@ -1,0 +1,36 @@
+[package]
+name = "rwkv"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+clap = "4.5"
+serde_json = "1.0"
+hf-hub = "0.3"
+tracing-subscriber = "0.3"
+tracing-chrome = "0.7"
+tokenizers = "0.15"
+
+[cargo-hf]
+features = ["accelerate"]
+cuda = false
+
+[dependencies.candle-core]
+git = "https://github.com/huggingface/candle"
+branch = "main"
+
+[dependencies.candle-transformers]
+git = "https://github.com/huggingface/candle"
+branch = "main"
+
+[dependencies.candle-nn]
+git = "https://github.com/huggingface/candle"
+branch = "main"
+
+[features]
+default = []
+# Mengubah fitur accelerate untuk menggunakan fitur yang kompatibel dengan CPU
+accelerate = ["candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
