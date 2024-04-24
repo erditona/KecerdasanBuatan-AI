@@ -1,6 +1,8 @@
+// Timestamp: 2021-08-29 00:00:00
 #[cfg(feature = "mkl")]
 extern crate intel_mkl_src;
 
+// Import beberapa modul yang diperlukan
 #[cfg(feature = "accelerate")]
 extern crate accelerate_src;
 
@@ -17,12 +19,14 @@ use candle_transformers::generation::LogitsProcessor;
 use hf_hub::{api::sync::Api, Repo, RepoType};
 use tokenizers::Tokenizer;
 
+// Mendefinisikan enum untuk merepresentasikan model yang tersedia
 enum Model {
     MixFormer(MixFormer),
     Phi(Phi),
     Quantized(QMixFormer),
 }
 
+// Struct untuk melakukan generasi teks
 struct TextGeneration {
     model: Model,
     device: Device,
@@ -34,6 +38,7 @@ struct TextGeneration {
 }
 
 impl TextGeneration {
+    // Konstruktor baru untuk TextGeneration
     #[allow(clippy::too_many_arguments)]
     fn new(
         model: Model,
@@ -58,9 +63,11 @@ impl TextGeneration {
         }
     }
 
+    // Fungsi untuk menjalankan generasi teks
     fn run(&mut self, prompt: &str, sample_len: usize) -> Result<()> {
         use std::io::Write;
         println!("starting the inference loop");
+        // Tokenisasi prompt
         let tokens = self.tokenizer.encode(prompt, true).map_err(E::msg)?;
         if tokens.is_empty() {
             anyhow::bail!("Empty prompts are not supported in the phi model.")
@@ -79,6 +86,7 @@ impl TextGeneration {
         };
         print!("{prompt}");
         std::io::stdout().flush()?;
+        // Mulai generasi teks
         let start_gen = std::time::Instant::now();
         for index in 0..sample_len {
             let context_size = if index > 0 { 1 } else { tokens.len() };
@@ -101,6 +109,7 @@ impl TextGeneration {
                 )?
             };
 
+            // Memilih token selanjutnya
             let next_token = self.logits_processor.sample(&logits)?;
             tokens.push(next_token);
             generated_tokens += 1;
@@ -111,6 +120,7 @@ impl TextGeneration {
             print!("{token}");
             std::io::stdout().flush()?;
         }
+        // Menghitung waktu yang diperlukan untuk generasi teks
         let dt = start_gen.elapsed();
         println!(
             "\n{generated_tokens} tokens generated ({:.2} token/s)",
@@ -120,6 +130,7 @@ impl TextGeneration {
     }
 }
 
+// Enum untuk menentukan model mana yang akan digunakan
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 enum WhichModel {
     #[value(name = "1")]
@@ -134,6 +145,7 @@ enum WhichModel {
     PhiHermes,
 }
 
+// Struct untuk menyimpan argumen yang diberikan
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -149,9 +161,11 @@ struct Args {
     #[arg(long)]
     verbose_prompt: bool,
 
+    // The prompt to generate samples from.
     #[arg(long)]
     prompt: Option<String>,
 
+    // The directory containing the MMLU test files.
     #[arg(long)]
     mmlu_dir: Option<String>,
 
@@ -171,6 +185,7 @@ struct Args {
     #[arg(long, short = 'n', default_value_t = 5000)]
     sample_len: usize,
 
+    /// The model id to use.
     #[arg(long)]
     model_id: Option<String>,
 
@@ -198,10 +213,13 @@ struct Args {
     repeat_last_n: usize,
 }
 
+// Fungsi main untuk menjalankan program utama yang akan melakukan generasi teks menggunakan model yang dipilih
 fn main() -> Result<()> {
+    // Import beberapa modul yang diperlukan
     use tracing_chrome::ChromeLayerBuilder;
     use tracing_subscriber::prelude::*;
 
+    // Mengambil argumen yang diberikan
     let args = Args::parse();
     let _guard = if args.tracing {
         let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
@@ -210,6 +228,7 @@ fn main() -> Result<()> {
     } else {
         None
     };
+    // Menampilkan informasi tentang model yang digunakan
     println!(
         "avx: {}, neon: {}, simd128: {}, f16c: {}",
         candle_core::utils::with_avx(),
@@ -217,6 +236,7 @@ fn main() -> Result<()> {
         candle_core::utils::with_simd128(),
         candle_core::utils::with_f16c()
     );
+    // Menampilkan informasi tentang argumen yang diberikan
     println!(
         "temp: {:.2} repeat-penalty: {:.2} repeat-last-n: {}",
         args.temperature.unwrap_or(0.),
@@ -224,6 +244,7 @@ fn main() -> Result<()> {
         args.repeat_last_n
     );
 
+    // Memulai proses untuk mengambil model yang dipilih
     let start = std::time::Instant::now();
     let api = Api::new()?;
     let model_id = match args.model_id {
@@ -243,6 +264,8 @@ fn main() -> Result<()> {
             }
         }
     };
+
+    // Memulai proses untuk mengambil tokenizer dan weight file yang diperlukan
     let revision = match args.revision {
         Some(rev) => rev.to_string(),
         None => {
@@ -260,6 +283,8 @@ fn main() -> Result<()> {
             }
         }
     };
+
+    // Memulai proses untuk mengambil model yang dipilih
     let repo = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
     let tokenizer_filename = match args.tokenizer {
         Some(file) => std::path::PathBuf::from(file),
@@ -272,6 +297,8 @@ fn main() -> Result<()> {
             }
         },
     };
+
+    // Memulai proses untuk mengambil weight file yang diperlukan
     let filenames = match args.weight_file {
         Some(weight_file) => vec![std::path::PathBuf::from(weight_file)],
         None => {
@@ -296,9 +323,12 @@ fn main() -> Result<()> {
             }
         }
     };
+
+    // Menampilkan waktu yang diperlukan untuk mengambil file yang diperlukan
     println!("retrieved the files in {:?}", start.elapsed());
     let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
 
+    // Memulai proses untuk mengambil device yang akan digunakan untuk menjalankan model
     let start = std::time::Instant::now();
     let config = || match args.model {
         WhichModel::V1 => Config::v1(),
@@ -307,6 +337,8 @@ fn main() -> Result<()> {
         WhichModel::PuffinPhiV2 => Config::puffin_phi_v2(),
         WhichModel::PhiHermes => Config::phi_hermes_1_3b(),
     };
+
+    // Memulai proses untuk menjalankan model yang dipilih menggunakan device yang dipilih
     let device = candle_examples::device(args.cpu)?;
     let model = if args.quantized {
         let config = config();
@@ -341,6 +373,7 @@ fn main() -> Result<()> {
     };
     println!("loaded the model in {:?}", start.elapsed());
 
+    // Memulai proses untuk menjalankan generasi teks menggunakan model yang dipilih
     match (args.prompt, args.mmlu_dir) {
         (None, None) | (Some(_), Some(_)) => {
             anyhow::bail!("exactly one of --prompt and --mmlu-dir must be specified")
@@ -364,12 +397,14 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+// Fungsi untuk menjalankan MMLU test
 fn mmlu<P: AsRef<std::path::Path>>(
     mut model: Model,
     tokenizer: Tokenizer,
     device: &Device,
     mmlu_dir: P,
 ) -> anyhow::Result<()> {
+    // Memulai proses untuk membaca file yang diperlukan
     for dir_entry in mmlu_dir.as_ref().read_dir()?.flatten() {
         let dir_entry = dir_entry.path();
         let theme = match dir_entry.file_stem().and_then(|v| v.to_str()) {
@@ -379,9 +414,11 @@ fn mmlu<P: AsRef<std::path::Path>>(
                 Some(v) => v.replace('_', " "),
             },
         };
+        // Memulai proses untuk membaca file yang diperlukan
         if dir_entry.extension().as_ref().and_then(|v| v.to_str()) != Some("csv") {
             continue;
         }
+        // Memulai proses untuk membaca file yang diperlukan dan melakukan generasi teks
         println!("reading {dir_entry:?}");
         let dir_entry = std::fs::File::open(dir_entry)?;
         let mut reader = csv::ReaderBuilder::new()
@@ -399,6 +436,7 @@ fn mmlu<P: AsRef<std::path::Path>>(
             if row.len() < 5 {
                 continue;
             }
+            // Memulai proses untuk membaca file yang diperlukan dan melakukan generasi teks menggunakan model yang dipilih
             let question = row.get(0).unwrap();
             let answer_a = row.get(1).unwrap();
             let answer_b = row.get(2).unwrap();
@@ -442,8 +480,10 @@ fn mmlu<P: AsRef<std::path::Path>>(
                 "D"
             };
 
+            // Menampilkan hasil dari generasi teks yang dilakukan menggunakan model yang dipilih dan membandingkannya dengan jawaban yang benar
             println!("{prompt}\n -> {model_answer} vs {answer}");
         }
     }
+    // Mengembalikan nilai Ok jika proses telah selesai
     Ok(())
 }
