@@ -56,4 +56,4 @@ Fitur utama dari model ini termasuk:
 - Mekanisme perhatian yang memungkinkan fokus pada bagian penting dari input, meningkatkan kemampuan dalam memahami dan menghasilkan teks yang relevan.
 - Kemampuan model untuk menyesuaikan pendekatannya tergantung pada panjang input, menjadikannya efisien dalam pengolahan informasi.
 
-Secara keseluruhan, Model Bahasa Besar dengan arsitektur Transformer memberikan terobosan dalam pemrosesan bahasa alami, membuka pintu bagi kemampuan yang sangat maju dan intuitif dalam menghasilkan dan memahami teks. 🤖✨
+Secara keseluruhan, Model Bahasa Besar dengan arsitektur Transformer memberikan terobosan dalam pemrosesan bahasa alami, membuka pintu bagi kemampuan yang sangat maju dan intuitif dalam menghasilkan dan memahami teks. 🤖✨ [Latihan Disini](https://colab.research.google.com/drive/1Y7egOC7sL8ZaAuv1F7lrb2MNpmtRB2pP?usp=sharing)
