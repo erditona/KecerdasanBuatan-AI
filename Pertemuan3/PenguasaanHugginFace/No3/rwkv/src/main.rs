@@ -1,3 +1,4 @@
+// Mengimpor pustaka-pustaka eksternal dan modul yang diperlukan
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 
@@ -12,8 +13,10 @@ use candle_nn::VarBuilder;
 use candle_transformers::generation::LogitsProcessor;
 use hf_hub::{api::sync::Api, Repo, RepoType};
 
+// Konstanta yang merepresentasikan ID token untuk akhir kalimat
 const EOS_TOKEN_ID: u32 = 261;
 
+// Enum yang mewakili model yang digunakan
 enum Model {
     M5(M5),
     Q5(Q5),
@@ -21,6 +24,7 @@ enum Model {
     Q6(Q6),
 }
 
+// Implementasi untuk model yang digunakan
 impl Model {
     fn forward(&self, xs: &Tensor, state: &mut State) -> candle_core::Result<Tensor> {
         match self {
@@ -32,6 +36,7 @@ impl Model {
     }
 }
 
+// Struct yang merepresentasikan pipeline untuk generasi teks
 struct TextGeneration {
     model: Model,
     config: Config,
@@ -42,6 +47,7 @@ struct TextGeneration {
     repeat_last_n: usize,
 }
 
+// Implementasi untuk pipeline generasi teks
 impl TextGeneration {
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -55,6 +61,7 @@ impl TextGeneration {
         repeat_last_n: usize,
         device: &Device,
     ) -> Self {
+        // Membuat objek LogitsProcessor yang digunakan untuk menghasilkan token selanjutnya
         let logits_processor = LogitsProcessor::new(seed, temp, top_p);
         Self {
             model,
@@ -67,6 +74,7 @@ impl TextGeneration {
         }
     }
 
+    // Fungsi yang digunakan untuk menjalankan pipeline generasi teks dengan prompt yang diberikan
     fn run(&mut self, prompt: &str, sample_len: usize) -> Result<()> {
         use std::io::Write;
         let mut tokens = self.tokenizer.encode(prompt)?;
@@ -81,6 +89,7 @@ impl TextGeneration {
         }
         std::io::stdout().flush()?;
 
+        // Membangkitkan token selanjutnya sampai panjang sampel yang diinginkan tercapai
         let start_gen = std::time::Instant::now();
         for _ in 0..sample_len {
             let logits = match next_logits.as_ref() {
@@ -119,6 +128,7 @@ impl TextGeneration {
     }
 }
 
+// Enum yang mewakili model yang digunakan untuk generasi teks
 #[derive(Parser, ValueEnum, Clone, Copy, PartialEq, Eq, Debug)]
 enum Which {
     Eagle7b,
@@ -127,13 +137,16 @@ enum Which {
     World6_1b6,
 }
 
+// Implementasi untuk enum Which
 impl std::fmt::Display for Which {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
+// Implementasi untuk enum Which
 impl Which {
+    // Fungsi yang mengembalikan ID model yang digunakan berdasarkan enum
     fn model_id(&self) -> &'static str {
         match self {
             Self::Eagle7b => "RWKV/v5-Eagle-7B-HF",
@@ -143,6 +156,7 @@ impl Which {
         }
     }
 
+    // Fungsi yang mengembalikan revisi model yang digunakan berdasarkan enum
     fn revision(&self) -> &'static str {
         match self {
             Self::Eagle7b => "refs/pr/1",
@@ -152,6 +166,7 @@ impl Which {
     }
 }
 
+// Struct yang merepresentasikan argumen yang diperlukan untuk menjalankan program
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -212,6 +227,7 @@ struct Args {
     repeat_last_n: usize,
 }
 
+// Fungsi yang mengembalikan perangkat yang digunakan untuk menjalankan program berdasarkan argumen yang diberikan
 pub fn device(cpu: bool) -> Result<Device> {
     if cpu {
         Ok(Device::Cpu)
@@ -234,10 +250,13 @@ pub fn device(cpu: bool) -> Result<Device> {
     }
 }
 
+// Fungsi utama yang menjalankan program dan mengembalikan Result jika terjadi error saat menjalankan program
 fn main() -> Result<()> {
+    // Menginisialisasi tracing jika argumen tracing diaktifkan
     use tracing_chrome::ChromeLayerBuilder;
     use tracing_subscriber::prelude::*;
 
+    // Menginisialisasi argumen yang diperlukan untuk menjalankan program
     let args = Args::parse();
     let _guard = if args.tracing {
         let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
@@ -260,6 +279,7 @@ fn main() -> Result<()> {
         args.repeat_last_n
     );
 
+    // Menginisialisasi API untuk mengakses model dan file yang diperlukan untuk menjalankan program
     let start = std::time::Instant::now();
     let api = Api::new()?;
     let repo = api.repo(Repo::with_revision(
@@ -279,6 +299,7 @@ fn main() -> Result<()> {
         Some(file) => std::path::PathBuf::from(file),
         None => repo.get("config.json")?,
     };
+    // Menginisialisasi file bobot model yang digunakan untuk generasi teks
     let filenames = match args.weight_files {
         Some(files) => files
             .split(',')
@@ -308,9 +329,12 @@ fn main() -> Result<()> {
             }
         }
     };
+
+    // Menginisialisasi tokenizer dan model yang digunakan untuk generasi teks berdasarkan file yang diperlukan untuk menjalankan program
     println!("retrieved the files in {:?}", start.elapsed());
     let tokenizer = Tokenizer::new(tokenizer)?;
 
+    // Menginisialisasi model yang digunakan untuk generasi teks berdasarkan argumen yang diberikan dan file yang diperlukan untuk menjalankan program
     let start = std::time::Instant::now();
     let config: Config = serde_json::from_slice(&std::fs::read(config_filename)?)?;
     let device = device(args.cpu)?;
@@ -331,6 +355,7 @@ fn main() -> Result<()> {
     };
     println!("loaded the model in {:?}", start.elapsed());
 
+    // Menjalankan pipeline generasi teks berdasarkan argumen yang diberikan dan model yang digunakan untuk generasi teks yang telah diinisialisasi
     let mut pipeline = TextGeneration::new(
         model,
         config,
@@ -342,6 +367,7 @@ fn main() -> Result<()> {
         args.repeat_last_n,
         &device,
     );
+    // Menjalankan pipeline generasi teks
     pipeline.run(&args.prompt, args.sample_len)?;
     Ok(())
 }
